@@ -34,5 +34,3 @@ test('has title', async ({ page }) => {
   // Print the product details
   console.log('Top 3 Products:', products);
 });
-
-
