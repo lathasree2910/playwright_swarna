@@ -1,0 +1,3 @@
+testCaseId,keyword,productCount,assertCount
+TC001,kurthisets,5,5
+TC002,shoes,3,2
