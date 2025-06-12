@@ -1,0 +1,4 @@
+testCase,testGroup,Execution
+TC001,searchproducts,"Regression,Sanity"
+TC002,searchproducts,Regression
+TC003,searchproducts,Regression

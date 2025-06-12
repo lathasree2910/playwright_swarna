@@ -1,0 +1,10 @@
+{
+  "success": true,
+  "data": {
+    "searchproducts": [
+      "TC001",
+      "TC002",
+      "TC003"
+    ]
+  }
+}

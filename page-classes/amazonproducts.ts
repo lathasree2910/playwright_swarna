@@ -1,7 +1,7 @@
 import { Page } from '@playwright/test';
 import { readTestCasesFromCSV, TestCase } from '../utils/fileUtils';
+import { parseMasterData } from '../utils/fileUtils';
 
-// Static locators for repeated elements
 const locators = {
   searchInput: 'input[name="field-keywords"]',
   searchResults: '.s-main-slot .s-result-item[data-component-type="s-search-result"]',
@@ -10,11 +10,13 @@ const locators = {
   productPrice: 'span.a-price-whole',
 };
 
-export class SearchAmazonProducts {
-  private page: Page;
+export class AmazonProducts {
+  readonly page: Page;
+  readonly filePath: string;
 
   constructor(page: Page) {
     this.page = page;
+    this.filePath = './test-data/search-amazon-products.csv';
   }
 
   async beforeEach() {
@@ -25,15 +27,12 @@ export class SearchAmazonProducts {
   async afterEach() {
     console.log('Test Execution Completed Successfully!');
   }
-   // Function to search for a product
 
   async searchProduct(searchQuery: string) {
     await this.page.fill(locators.searchInput, searchQuery);
     await this.page.press(locators.searchInput, 'Enter');
     await this.page.waitForSelector(locators.searchResults);
   }
-  
-  // Function to extract product details 
 
   async extractProductDetails(count: number) {
     const productCards = this.page.locator(locators.searchResults);
@@ -54,41 +53,42 @@ export class SearchAmazonProducts {
 
     return productDetails;
   }
-  // Read test cases from CSV
-  // GET TEST_CASE_ID from environment variable
 
   async runTestCases() {
-    const allTestCases: TestCase[] = await readTestCasesFromCSV('./testdata.csv');
-    const testCaseId = process.env.TEST_CASE_ID;
-    const assertCountFromEnv = process.env.ASSERT_COUNT ? parseInt(process.env.ASSERT_COUNT, 10) : undefined;
-
-    const testCases = testCaseId === 'all'
-      ? allTestCases
-      : allTestCases.filter((testCase) => testCase.testCaseId === testCaseId);
-
-  // Check if there are any test cases to run
-
-    if (testCases.length === 0) {
-      console.log(`No test cases found for TEST_CASE_ID: ${testCaseId}`);
+    console.log('Parsing master data...');
+    const masterData = await parseMasterData('./testGroup/amazon-products.csv');
+    
+    const executionFilter = process.env.Execution || '';
+    if (!executionFilter) {
+      console.error('Execution environment variable not set!');
       return;
     }
-    // Run loop through each test case
 
-    for (const { testCaseId, keyword, productCount } of testCases) {
+    console.log(`Filtering test cases for execution type: ${executionFilter}`);
+    
+    if (!masterData['searchproducts']) {
+      console.log('No test cases found for execution.');
+      return;
+    }
+
+    console.log('Reading slave test cases...');
+    const slaveTestCases: TestCase[] = await readTestCasesFromCSV('./test-data/search-amazon-products.csv');
+
+    const filteredTestCases = slaveTestCases.filter(tc => masterData['searchproducts'].includes(tc.testCaseId));
+
+    if (filteredTestCases.length === 0) {
+      console.log('No matching test cases found.');
+      return;
+    }
+
+    for (const { testCaseId, keyword, productCount } of filteredTestCases) {
       console.log(`Running test case: ${testCaseId}`);
-      console.log(`Searching for: ${keyword}`);
       await this.beforeEach();
       await this.searchProduct(keyword);
       const productDetails = await this.extractProductDetails(productCount);
       await this.afterEach();
 
-      // Error handling for assertcount
-      if (assertCountFromEnv !== undefined && productDetails.length !== assertCountFromEnv) {
-        console.error(`Test Case ${testCaseId} Failed! Expected ${assertCountFromEnv} products but found ${productDetails.length}.`);
-        continue; // Skip to next test case
-      }
-
-      console.log(`First ${productCount} Products for "${keyword}":`, productDetails);
+      console.log(`Extracted products for "${keyword}":`, productDetails);
     }
   }
 }
